@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-mcp"
+version = "0.1.1"
+description = "django-mcp adds MCP tool hosting to Django."
+authors = [
+    {name = "Patrick Paul", email = "patrick@kitespark.com"},
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "mcp[cli]>=1.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kitespark/django-mcp"
+Issues = "https://github.com/kitespark/django-mcp/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["django_mcp*"]
+namespaces = false
+
+[tool.setuptools]
+ # https://github.com/astral-sh/uv/issues/9513#issuecomment-2519527822
+ license-files = []
