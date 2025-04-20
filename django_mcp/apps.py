@@ -1,8 +1,11 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django_mcp import mcp_app
+# Import the decorator to be applied
+from .decorators import log_mcp_tool_calls
 from .loader import register_mcp_modules
 from .log import logger, configure_logging
+from .mcp_sdk_patches import patch_mcp_tool_decorator
 
 class MCPConfig(AppConfig):
     name = 'django_mcp'
@@ -17,6 +20,7 @@ class MCPConfig(AppConfig):
             'MCP_SERVER_INSTRUCTIONS': 'Provides MCP tools',
             'MCP_SERVER_VERSION': '0.1.0',
             'MCP_DIRS': [],
+            'MCP_PATCH_SDK_TOOL_LOGGING': True,
         }
 
         for key, value in default_settings.items():
@@ -30,6 +34,10 @@ class MCPConfig(AppConfig):
         # Re-configure logging for the MCP app
         configure_logging()
 
+        # Apply monkey patches
+        if settings.MCP_PATCH_SDK_TOOL_LOGGING:
+            patch_mcp_tool_decorator(mcp_app)
+
         # Load MCP modules
         register_mcp_modules()
         tools = mcp_app._tool_manager.list_tools()
@@ -37,3 +45,4 @@ class MCPConfig(AppConfig):
             for tool in tools:
                 description = f" - {tool.description}" if settings.MCP_LOG_TOOL_DESCRIPTIONS else ""
                 logger.info(f"Registered MCP tool: {tool.name}{description}")
+

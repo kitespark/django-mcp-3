@@ -97,11 +97,83 @@ This library allows customization through Django settings. The following setting
 | `MCP_SERVER_TITLE`           | Sets the title of the MCP server                        | `'MCP Server'`         |
 | `MCP_SERVER_VERSION`         | Sets the version of the MCP server                      | `'0.1.0'`              |
 | `MCP_DIRS`                   | Additional search paths to load MCP modules             | `'0.1.0'`              |
+| `MCP_PATCH_SDK_TOOL_LOGGING` | Adds debug and exception logging to @tool decorator     | `True`                 |
 
 If a setting is not found in your project's `settings.py`, the default value will be used.
 
----
+## Server-side Tool Logging
 
+`django-mcp` provides several ways to log the execution of your MCP tools:
+
+1.  **Automatic Logging (Default):**
+    By default, `django-mcp` automatically applies basic logging to all functions decorated with `@mcp_app.tool()`. This is controlled by the `settings.MCP_PATCH_SDK_TOOL_LOGGING` setting which defaults to `True`. This logging includes:
+    *   DEBUG level message upon tool entry.
+    *   DEBUG level message upon successful tool exit, including the return value.
+    *   WARNING level message if the tool raises an exception, including the exception details and traceback.
+
+It's important to note that the standard `@tool` decorator provided by the underlying `mcp-python-sdk` does *not*, by itself, log exceptions raised within the tool function to the server's standard output or error streams. Exceptions are typically just passed back to the client. However, when `settings.MCP_PATCH_SDK_TOOL_LOGGING` is enabled in `django-mcp` (the default), the enhanced decorator applied by `django-mcp` *does* intercept these exceptions, logs the details and traceback to the configured Django logger (visible in the server's console/stderr) at the WARNING level, and then allows the error to be passed back to the client as usual.
+
+2.  **Manual Decorator Logging:**
+    If you disable `settings.MCP_PATCH_SDK_TOOL_LOGGING = False` in your Django settings, you can still apply the same logging behavior to specific tools using the `@log_mcp_tool_calls` decorator. This decorator must be placed *below* the `@mcp_app.tool()` decorator:
+
+    ```python
+    from django_mcp import mcp_app as mcp
+    from django_mcp.decorators import log_mcp_tool_calls  # Import the decorator
+
+    @mcp.tool()
+    @log_mcp_tool_calls  # Apply below @mcp.tool()
+    def add(a: int, b: int) -> int:
+        """Add two numbers"""
+        return a + b
+    ```
+
+## Using MCP python-sdk Context
+
+For more control over client-side logging *within* your tool's execution, or to report progress, you can request the `Context` object provided by the underlying MCP `python-sdk`. Add a parameter type-hinted as `Context` to your tool function's signature. The `Context` object provides methods like `ctx.info()`, `ctx.debug()`, `ctx.warning()`, `ctx.error()`, and `ctx.report_progress()` which send structured messages back to the MCP client.
+
+    ```python
+    from django_mcp import mcp_app
+    from mcp.server.fastmcp import Context  # Import Context from the SDK
+    import asyncio # Added missing import for example
+
+    @mcp_app.tool()
+    async def a_very_long_task(input_data: str, ctx: Context):
+        await ctx.info("Starting a long task task...")
+
+        for i in range(10):
+            await ctx.report_progress(i*10, 100)  # Report progress
+            await asyncio.sleep(3)  # Sleep for 3 seconds
+            await ctx.info('... doing work...')
+
+        await ctx.info("Long task finished.")
+        return "Success"
+    ```
+
+## Asynchronous Django ORM
+
+When writing asynchronous MCP tools (using `async def`) that interact with the Django ORM (version 4.1 or later), you should use the native asynchronous ORM methods provided by Django. For example, use `await YourModel.objects.aget(pk=...)` instead of `YourModel.objects.get(pk=...)`, and `await YourModel.objects.acreate(...)` instead of `YourModel.objects.create(...)`. Refer to the [official Django documentation on asynchronous support](https://docs.djangoproject.com/en/stable/topics/async/) for a complete list of async ORM methods and usage details.
+
+For synchronous functions or operations that need to be called from an asynchronous context (like interacting with synchronous third-party libraries or performing operations that require a synchronous transaction block), use the `sync_to_async` adapter from `asgiref.sync`. For example:
+
+```python
+from asgiref.sync import sync_to_async
+from django_mcp import mcp_app
+# Assuming Counter is a Django model with a sync method 'increment_sync'
+from .models import Counter
+
+@mcp_app.tool()
+async def increment_counter_tool(counter_id: int) -> None:
+    """Increment a counter, demonstrating sync_to_async"""
+    try:
+        counter = await Counter.objects.aget(pk=counter_id)
+        # Assume counter.increment_sync() is a synchronous method
+        await sync_to_async(counter.increment_sync)()
+    except Counter.DoesNotExist:
+        # Handle error appropriately
+        pass
+```
+
+---
 
 ## MCP Inspector
 
@@ -142,3 +214,4 @@ uv sync
 This project is licensed un the MIT License.
 
 By submitting a pull request, you agree that any contributions will be licensed under the MIT License, unless explicitly stated otherwise.
+
