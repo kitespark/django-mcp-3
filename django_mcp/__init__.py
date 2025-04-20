@@ -8,11 +8,8 @@ from starlette.requests import Request
 from starlette.routing import Mount, Route
 from starlette.types import ASGIApp
 
-MCP_SERVER_TITLE = getattr(settings, 'MCP_SERVER_TITLE', 'MCP Server')
-MCP_SERVER_DESCRIPTION = getattr(settings, 'MCP_SERVER_DESCRIPTION', 'Provides MCP tools')
-
 # Initialize FastMCP app for handling key routes like /sse, /messages, etc.
-mcp_app = FastMCP(title=MCP_SERVER_TITLE, description=MCP_SERVER_DESCRIPTION)
+mcp_app = FastMCP()
 
 # Override FastMCP.sse_app() to support nested paths (e.g. /mcp/sse instead of /sse)
 # This monkey patch addresses a limitation in modelcontextprotocol/python-sdk.
@@ -36,12 +33,24 @@ def FastMCP_sse_app_patch(_self: FastMCP, base_path: str = '/mcp'):
 
     return (handle_sse, sse)
 
+def apply_django_settings(_self: FastMCP):
+    _self._mcp_server.title = settings.MCP_SERVER_TITLE
+    _self._mcp_server.instructions = settings.MCP_SERVER_INSTRUCTIONS
+    _self._mcp_server.version = settings.MCP_SERVER_VERSION
+
 # Create a combined Starlette app with Django and MCP mounted
 def mount_mcp_server(django_http_app: ASGIApp, mcp_base_path: str = '/mcp') -> ASGIApp:
+    # Apply project settings.py overrides to the MCP application
+    apply_django_settings(mcp_app)
+
+    # Patch the FastMCP.sse_app() method to support nested paths
     (handle_sse, sse) = FastMCP_sse_app_patch(mcp_app, base_path=mcp_base_path)
+
+    # Register the patched SSE handler and mount the messages endpoint
     combined_app = Starlette(routes=[
         Route(f'{mcp_base_path}/sse', endpoint=handle_sse),
         Mount(f'{mcp_base_path}/messages/', app=sse.handle_post_message),
         Mount('/', app=django_http_app),
     ])
+
     return combined_app

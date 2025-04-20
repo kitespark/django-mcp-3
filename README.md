@@ -36,14 +36,19 @@ import os
 import django
 from django.core.asgi import get_asgi_application
 
+# new import
+from django_mcp import mount_mcp_server
+
+# configure settings module path
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'my_project.settings')
+
+# initialize django
 django.setup()
 
-from django_mcp import mount_mcp_server  # must come after django.setup()
-
+# get the django http application
 django_http_app = get_asgi_application()
 
-# for django ASGI:
+# combine the django asgi and mcp asgi applications
 application = mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/mcp')
 
 # for django-channels ASGI:
@@ -78,6 +83,18 @@ def get_greeting(name: str) -> str:
     """Get a personalized greeting"""
     return f"Hello, {name}!"
 ```
+
+## Configuration
+
+This library allows customization through Django settings. The following settings can be defined in your project's `settings.py`:
+
+| key                       | description                                        | default             |
+| ------------------------- | -------------------------------------------------- | ------------------- |
+| `MCP_SERVER_TITLE`        | Sets the title of the MCP server                   | `'MCP Server'`      |
+| `MCP_SERVER_INSTRUCTIONS` | Sets the instructions provided by the MCP server   | `'Provides MCP tools'` |
+| `MCP_SERVER_VERSION`      | Sets the version of the MCP server                 | `'0.1.0'`           |
+
+If a setting is not found in your project's `settings.py`, the default value will be used.
 
 ---
 
