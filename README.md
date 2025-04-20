@@ -24,6 +24,10 @@ INSTALLED_APPS = [
 
 ## Usage
 
+To use this library, you need to mount the MCP ASGI application to a route in your existing Django ASGI application.
+
+### ASGI setup
+
 First, configure your Django ASGI application entrypoint `asgi.py` to mount the MCP server using `mount_mcp_server`:
 
 ```python
@@ -49,10 +53,19 @@ application = mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/
 # })
 ```
 
+To start your server:
+
+```bash
+uvicorn my_project.asgi:application --host 0.0.0.0 --port 8000
+```
+
 Now the `mcp_app` FastMCP object can be accessed in your project files with the same interface as defined in the upstream [modelcontextprotocol/python-sdk](https://github.com/modelcontextprotocol/python-sdk) SDK.
 
+### MCP decorators
+
+This library exports `mcp_app` which corresponds to the upstream [modelcontextprotocol/python-sdk](https://github.com/modelcontextprotocol/python-sdk) `FastMCP` object instance. You can use any of the upstream API decorators like `@mcp_app.tool` to define your tools, prompts, resources, etc.
+
 ```python
-# my_app/tools.py
 from django_mcp import mcp_app as mcp
 
 @mcp.tool()
@@ -66,16 +79,8 @@ def get_greeting(name: str) -> str:
     return f"Hello, {name}!"
 ```
 
-```python
-# my_app/apps.py
-import my_app.tools
-```
+---
 
-To start your server:
-
-```bash
-uvicorn my_project.asgi:application --host 0.0.0.0 --port 8000
-```
 
 ## MCP Inspector
 
@@ -90,6 +95,7 @@ python manage.py mcp_inspector [url]
 Replace `[url]` with the URL of your running MCP server, typically `http://localhost:8000/mcp/sse`. If you omit the URL, it defaults to `http://127.0.0.1:8000/mcp/sse`.
 
 The command will start the inspector and output the URL (usually `http://127.0.0.1:6274`) where you can access it in your web browser.
+
 ---
 
 ## Future roadmap
