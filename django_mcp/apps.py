@@ -12,9 +12,11 @@ class MCPConfig(AppConfig):
         default_settings = {
             'MCP_LOG_LEVEL': 'INFO',
             'MCP_LOG_TOOL_REGISTRATION': True,
+            'MCP_LOG_TOOL_DESCRIPTIONS': False,
             'MCP_SERVER_TITLE': 'MCP Server',
             'MCP_SERVER_INSTRUCTIONS': 'Provides MCP tools',
             'MCP_SERVER_VERSION': '0.1.0',
+            'MCP_DIRS': [],
         }
 
         for key, value in default_settings.items():
@@ -33,4 +35,5 @@ class MCPConfig(AppConfig):
         tools = mcp_app._tool_manager.list_tools()
         if settings.MCP_LOG_TOOL_REGISTRATION:
             for tool in tools:
-                logger.info(f"Registered MCP tool: {tool.name} - {tool.description}")
+                description = f" - {tool.description}" if settings.MCP_LOG_TOOL_DESCRIPTIONS else ""
+                logger.info(f"Registered MCP tool: {tool.name}{description}")

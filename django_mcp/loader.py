@@ -1,44 +1,56 @@
 import importlib
+import importlib.machinery
+import importlib.util
 import os
 import sys
 from pathlib import Path
 
 from django.apps import apps
+from django.conf import settings
 from django.utils.module_loading import module_has_submodule
+
+from .log import logger
+
+
+def load_mcp_dirs():
+    dirs = settings.MCP_DIRS
+    if not dirs:
+        return
+
+    for entry in dirs:
+        base = Path(entry)
+        if not base.is_absolute():
+            base = Path(settings.BASE_DIR) / base
+        if not base.exists():
+            logger.warning(f"Skipping non‑existent MCP dir: {base}")
+            continue
+
+        for py in base.rglob("*.py"):
+            if py.name == "__init__.py":
+                continue
+            module_name = f"mcp_dirs.{py.stem}"
+            try:
+                loader = importlib.machinery.SourceFileLoader(module_name, str(py))
+                spec = importlib.util.spec_from_loader(module_name, loader)
+                mod = importlib.util.module_from_spec(spec)
+                loader.exec_module(mod)
+                sys.modules[module_name] = mod
+                logger.debug(f"Imported MCP file: {py}")
+            except Exception as e:
+                logger.error(f"Failed to import {py}: {e}", exc_info=True)
 
 
 def autodiscover_mcp_modules():
-    """
-    Search for and import MCP modules from all installed Django apps.
-
-    This function looks for either:
-    - An 'mcp.py' file directly in the app package
-    - An 'mcp/__init__.py' file (mcp as a subpackage)
-    """
     for app_config in apps.get_app_configs():
-        app_path = Path(app_config.path)
-        app_package = app_config.name
-
-        # Check for mcp.py file
-        mcp_module_name = f"{app_package}.mcp"
-        mcp_path = app_path / "mcp.py"
-
-        # Check for mcp/__init__.py (mcp as a package)
-        mcp_package_path = app_path / "mcp" / "__init__.py"
-
-        # Try importing the module if either file exists
-        if mcp_path.exists() or mcp_package_path.exists():
+        if module_has_submodule(app_config.module, "mcp"):
+            mcp_module_name = f"{app_config.name}.mcp"
             try:
                 importlib.import_module(mcp_module_name)
-            except ImportError as e:
-                # Check if the error is actually from the MCP module itself
-                # or from an import inside the MCP module
-                if not module_has_submodule(sys.modules[app_package], 'mcp'):
-                    # The module doesn't exist, so ignore the error
-                    continue
-                # The module exists but there was an import error inside it, so re-raise
-                raise
+                logger.debug(f"Imported MCP module: {mcp_module_name}")
+            except Exception as e:
+                logger.error(f"Failed to import MCP module {mcp_module_name}: {e}", exc_info=True)
 
 
 def register_mcp_modules():
     autodiscover_mcp_modules()
+    load_mcp_dirs()

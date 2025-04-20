@@ -92,9 +92,11 @@ This library allows customization through Django settings. The following setting
 |------------------------------|---------------------------------------------------------|------------------------|
 | `MCP_LOG_LEVEL`              | Controls the MCP logging level                          | `'INFO'`               |
 | `MCP_LOG_TOOL_REGISTRATION`  | Controls whether tool registration is logged at startup | `True`                 |
+| `MCP_LOG_TOOL_DESCRIPTIONS`  | Controls whether tool descriptions are also logged      | `False`                |
 | `MCP_SERVER_INSTRUCTIONS`    | Sets the instructions provided by the MCP server        | `'Provides MCP tools'` |
 | `MCP_SERVER_TITLE`           | Sets the title of the MCP server                        | `'MCP Server'`         |
 | `MCP_SERVER_VERSION`         | Sets the version of the MCP server                      | `'0.1.0'`              |
+| `MCP_DIRS`                   | Additional search paths to load MCP modules             | `'0.1.0'`              |
 
 If a setting is not found in your project's `settings.py`, the default value will be used.
 
