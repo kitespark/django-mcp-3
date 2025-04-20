@@ -12,6 +12,16 @@ Available on PyPI:
 pip install django-mcp
 ```
 
+Add `'django_mcp'` to your `INSTALLED_APPS` setting like this:
+
+```python
+# settings.py
+INSTALLED_APPS = [
+    ...
+    'django_mcp',
+]
+```
+
 ## Usage
 
 First, configure your Django ASGI application entrypoint `asgi.py` to mount the MCP server using `mount_mcp_server`:
@@ -69,16 +79,17 @@ uvicorn my_project.asgi:application --host 0.0.0.0 --port 8000
 
 ## MCP Inspector
 
-Launch the inspector web app using the following command, then navigate to `http://127.0.0.1:6274`, change transport to SSE, and input your Django MCP URL like `http://localhost:8000/mcp/sse`.
+This library includes a convenient management command to run the MCP Inspector tool against your Django application.
+
+Start the inspector by running the following command in your project's root directory (where `manage.py` is located):
 
 ```bash
-npx @modelcontextprotocol/inspector
-
-# Starting MCP inspector...
-# ⚙️ Proxy server listening on port 6277
-# 🔍 MCP Inspector is up and running at http://127.0.0.1:6274 🚀
+python manage.py mcp_inspector [url]
 ```
 
+Replace `[url]` with the URL of your running MCP server, typically `http://localhost:8000/mcp/sse`. If you omit the URL, it defaults to `http://127.0.0.1:8000/mcp/sse`.
+
+The command will start the inspector and output the URL (usually `http://127.0.0.1:6274`) where you can access it in your web browser.
 ---
 
 ## Future roadmap
