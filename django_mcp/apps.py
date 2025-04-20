@@ -1,6 +1,6 @@
-# django_mcp/apps.py
 from django.apps import AppConfig
 from django.conf import settings
+from .log import logger, configure_logging
 
 class MCPConfig(AppConfig):
     name = 'django_mcp'
@@ -18,3 +18,6 @@ class MCPConfig(AppConfig):
         for key, value in default_settings.items():
             if not hasattr(settings, key):
                 setattr(settings, key, value)
+
+        # Re-configure logging for the MCP app
+        configure_logging()

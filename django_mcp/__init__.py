@@ -1,5 +1,6 @@
 import asyncio
 import random
+from .log import logger
 from django.conf import settings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
@@ -52,5 +53,7 @@ def mount_mcp_server(django_http_app: ASGIApp, mcp_base_path: str = '/mcp') -> A
         Mount(f'{mcp_base_path}/messages/', app=sse.handle_post_message),
         Mount('/', app=django_http_app),
     ])
+
+    logger.info(f"Serving '{settings.MCP_SERVER_TITLE}' MCP SSE at {mcp_base_path}/sse")
 
     return combined_app
