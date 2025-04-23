@@ -138,6 +138,7 @@ This library allows customization through Django settings. The following setting
 | `MCP_SERVER_VERSION`         | Sets the version of the MCP server                      | `'0.1.0'`              |
 | `MCP_DIRS`                   | Additional search paths to load MCP modules             | `[]`                   |
 | `MCP_PATCH_SDK_TOOL_LOGGING` | Adds debug and exception logging to @tool decorator     | `True`                 |
+| `MCP_PATCH_SDK_GET_CONTEXT`  | Adds URL path parameters to @tool Context object        | `True`                 |
 
 If a setting is not found in your project's `settings.py`, the default value will be used.
 

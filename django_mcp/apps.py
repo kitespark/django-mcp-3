@@ -17,16 +17,15 @@ class MCPConfig(AppConfig):
     verbose_name = 'Django MCP'
 
     defaults = {
-        "MCP_SERVER_TITLE": "Django MCP Server",
         "MCP_LOG_LEVEL": "INFO",
-        "MCP_PATCH_SDK_TOOL_LOGGING": True,
-        "MCP_PATCH_SDK_GET_CONTEXT": True,
-        "MCP_AUTODISCOVER_MODULES": ["mcp", "mcp_tools"],
         'MCP_LOG_TOOL_REGISTRATION': True,
         'MCP_LOG_TOOL_DESCRIPTIONS': False,
         'MCP_SERVER_INSTRUCTIONS': 'Provides MCP tools',
+        "MCP_SERVER_TITLE": "Django MCP Server",
         'MCP_SERVER_VERSION': '0.1.0',
         'MCP_DIRS': [],
+        "MCP_PATCH_SDK_TOOL_LOGGING": True,
+        "MCP_PATCH_SDK_GET_CONTEXT": True,
     }
 
     def apply_default_settings(self):

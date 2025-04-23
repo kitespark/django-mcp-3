@@ -61,9 +61,9 @@ def patch_mcp_get_context(mcp_app: FastMCP):
         logger.debug(f"Injecting path_params into context: {path_params}")
 
         custom_context = DjangoMCPContext(
-            request_context=request_context,  # Pass the (potentially None) request context
-            fastmcp=self,                  # Pass the FastMCP instance
-            path_params=path_params,       # Pass the retrieved path parameters
+            request_context=request_context, # Pass the (potentially None) request context
+            fastmcp=self,  # Pass the FastMCP instance
+            path_params=path_params,  # Pass the retrieved path parameters
         )
         return custom_context
 
