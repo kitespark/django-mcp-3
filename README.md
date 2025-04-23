@@ -28,7 +28,7 @@ To use this library, you need to mount the MCP ASGI application to a route in yo
 
 ### ASGI setup
 
-First, configure your Django ASGI application entrypoint `asgi.py` to mount the MCP server using `mount_mcp_server`:
+First, configure your Django ASGI application entrypoint `asgi.py`. Use `mount_mcp_server` to mount the MCP server using Django-style URL path parameters. These URL path parameters will be available in the MCP [Context](https://github.com/modelcontextprotocol/python-sdk/blob/58b989c0a3516597576cd3025a45d194578135bd/README.md#context) object to any `@mcp.tool` decorated functions.
 
 ```python
 # asgi.py
@@ -48,14 +48,21 @@ django.setup()
 # get the django http application
 django_http_app = get_asgi_application()
 
-# combine the django asgi and mcp asgi applications
-application = mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/mcp')
+# Mount MCP server dynamically using a URL parameter (e.g., user_uuid)
+application = mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/mcp/<slug:user_uuid>')
 
 # for django-channels ASGI:
 # from channels.routing import ProtocolTypeRouter
 # application = ProtocolTypeRouter({
-#     "http": mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/mcp')
+#     "http": mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/mcp/<slug:user_uuid>')
 # })
+```
+
+Alternatively, if you don't need dynamic mounting, you can provide a static path:
+
+```python
+# Simpler setup with a static path
+application = mount_mcp_server(django_http_app=django_http_app, mcp_base_path='/mcp')
 ```
 
 To start your server:
@@ -84,6 +91,39 @@ def get_greeting(name: str) -> str:
     return f"Hello, {name}!"
 ```
 
+As shown in the [ASGI setup](#asgi-setup) section, `mount_mcp_server` allows you to define Django-style URL path parameters (e.g., `/mcp/<slug:user_uuid>`). These parameters are captured and made available within your tool functions via the `path_params` attribute on the `Context` object.
+
+```python
+# Example demonstrating access to path parameters (e.g., user_uuid from /mcp/<slug:user_uuid>)
+from mcp.server.fastmcp import Context
+# Assuming User model exists
+# from my_app.models import User
+
+@mcp.tool()
+async def get_user_info_from_path(ctx: Context) -> str:
+    """Retrieves user info based on user_uuid from the URL path."""
+    # Access path parameters captured during mounting
+    path_params = getattr(ctx, 'path_params', {})
+    user_uuid = path_params.get('user_uuid', None)
+
+    if not user_uuid:
+        await ctx.error("User UUID not found in path parameters.")
+        return "Error: User UUID missing."
+
+    # Example: Fetch user from database (requires async ORM or sync_to_async)
+    # try:
+    #     user = await User.objects.aget(uuid=user_uuid)
+    #     return f"User found: {user.username}"
+    # except User.DoesNotExist:
+    #     await ctx.warning(f"User with UUID {user_uuid} not found.")
+    #     return f"Error: User {user_uuid} not found."
+
+    # Simplified example returning the uuid
+    await ctx.info(f"Retrieved user_uuid: {user_uuid}")
+    return f"Retrieved user_uuid: {user_uuid}"
+
+```
+
 ## Configuration
 
 This library allows customization through Django settings. The following settings can be defined in your project's `settings.py`:
@@ -96,7 +136,7 @@ This library allows customization through Django settings. The following setting
 | `MCP_SERVER_INSTRUCTIONS`    | Sets the instructions provided by the MCP server        | `'Provides MCP tools'` |
 | `MCP_SERVER_TITLE`           | Sets the title of the MCP server                        | `'MCP Server'`         |
 | `MCP_SERVER_VERSION`         | Sets the version of the MCP server                      | `'0.1.0'`              |
-| `MCP_DIRS`                   | Additional search paths to load MCP modules             | `'0.1.0'`              |
+| `MCP_DIRS`                   | Additional search paths to load MCP modules             | `[]`                   |
 | `MCP_PATCH_SDK_TOOL_LOGGING` | Adds debug and exception logging to @tool decorator     | `True`                 |
 
 If a setting is not found in your project's `settings.py`, the default value will be used.
@@ -214,4 +254,3 @@ uv sync
 This project is licensed un the MIT License.
 
 By submitting a pull request, you agree that any contributions will be licensed under the MIT License, unless explicitly stated otherwise.
-
