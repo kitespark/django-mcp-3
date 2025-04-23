@@ -1,47 +1,65 @@
+"""
+django_mcp/apps.py
+
+Django AppConfig for django_mcp
+"""
+
 from django.apps import AppConfig
 from django.conf import settings
 from django_mcp import mcp_app
-from .decorators import log_mcp_tool_calls
 from .loader import register_mcp_modules
 from .log import logger, configure_logging
-from .mcp_sdk_patches import patch_mcp_tool_decorator
+# Ensure both patches are imported correctly
+from .mcp_sdk_patches import patch_mcp_tool_decorator, patch_mcp_get_context
 
 class MCPConfig(AppConfig):
     name = 'django_mcp'
     verbose_name = 'Django MCP'
 
-    def apply_default_settings(self):
-        default_settings = {
-            'MCP_LOG_LEVEL': 'INFO',
-            'MCP_LOG_TOOL_REGISTRATION': True,
-            'MCP_LOG_TOOL_DESCRIPTIONS': False,
-            'MCP_SERVER_TITLE': 'MCP Server',
-            'MCP_SERVER_INSTRUCTIONS': 'Provides MCP tools',
-            'MCP_SERVER_VERSION': '0.1.0',
-            'MCP_DIRS': [],
-            'MCP_PATCH_SDK_TOOL_LOGGING': True,
-        }
+    defaults = {
+        "MCP_SERVER_TITLE": "Django MCP Server",
+        "MCP_LOG_LEVEL": "INFO",
+        "MCP_PATCH_SDK_TOOL_LOGGING": True,
+        "MCP_PATCH_SDK_GET_CONTEXT": True,
+        "MCP_AUTODISCOVER_MODULES": ["mcp", "mcp_tools"],
+        'MCP_LOG_TOOL_REGISTRATION': True,
+        'MCP_LOG_TOOL_DESCRIPTIONS': False,
+        'MCP_SERVER_INSTRUCTIONS': 'Provides MCP tools',
+        'MCP_SERVER_VERSION': '0.1.0',
+        'MCP_DIRS': [],
+    }
 
-        for key, value in default_settings.items():
+    def apply_default_settings(self):
+        """Applies default settings if they are not present in Django's settings."""
+        for key, value in self.defaults.items():
             if not hasattr(settings, key):
                 setattr(settings, key, value)
 
     def ready(self):
-        # Add defaults to Django settings if not already set
+        """Called when the Django app is ready."""
+        # Add defaults to Django settings.py if not already set in user project
         self.apply_default_settings()
 
         # Re-configure logging for the MCP app
         configure_logging()
 
-        # Apply monkey patches
+        # Apply logging patch if configured
         if settings.MCP_PATCH_SDK_TOOL_LOGGING:
+            logger.debug("Applying MCP SDK tool logging patch")
             patch_mcp_tool_decorator(mcp_app)
 
-        # Load MCP modules
+        # Apply context patch if configured
+        if settings.MCP_PATCH_SDK_GET_CONTEXT:
+            logger.debug("Applying MCP SDK get_context patch for URL params")
+            patch_mcp_get_context(mcp_app)
+
+        # Load MCP modules from Django apps
         register_mcp_modules()
         tools = mcp_app._tool_manager.list_tools()
-        if settings.MCP_LOG_TOOL_REGISTRATION:
-            for tool in tools:
-                description = f" - {tool.description}" if settings.MCP_LOG_TOOL_DESCRIPTIONS else ""
-                logger.info(f"Registered MCP tool: {tool.name}{description}")
 
+        # Log registered MCP tools if configured
+        if settings.MCP_LOG_TOOL_REGISTRATION:
+            log_descriptions = settings.MCP_LOG_TOOL_DESCRIPTIONS
+            for tool in tools:
+                description = f" - {tool.description}" if log_descriptions else ""
+                logger.info(f"Registered MCP tool: {tool.name}{description}")
