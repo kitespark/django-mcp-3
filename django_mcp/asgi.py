@@ -1,60 +1,72 @@
-import asyncio
-import random
+"""
+django_mcp/asgi.py
+
+ASGI configuration for django-mcp, allowing mounting the MCP server
+with a Django application.
+"""
 
 from django.conf import settings
 from mcp.server.fastmcp import FastMCP
-from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Mount, Route
 from starlette.types import ASGIApp
 
+from mcp.server.fastmcp import FastMCP
+from mcp.server.sse import SseServerTransport
+
 from .log import logger
+from .interop_django_fastapi import _convert_django_path_to_starlette
+from .asgi_patch_fastmcp import FastMCP_sse_app_patch
+
+from .asgi_interceptors import make_intercept_sse_send
 
 mcp_app = FastMCP()
-
-# Override FastMCP.sse_app() to support nested paths (e.g. /mcp/sse instead of /sse)
-# This monkey patch addresses a limitation in modelcontextprotocol/python-sdk.
-# Related issue: https://github.com/modelcontextprotocol/python-sdk/issues/412
-# Source code reference (original method):
-# https://github.com/modelcontextprotocol/python-sdk/blob/70115b99b3ee267ef10f61df21f73a93db74db03/src/mcp/server/fastmcp/server.py#L480
-def FastMCP_sse_app_patch(_self: FastMCP, base_path: str = '/mcp'):
-    sse = SseServerTransport(f'{base_path}/messages/')
-
-    async def handle_sse(request: Request) -> None:
-        async with sse.connect_sse(
-            request.scope,
-            request.receive,
-            request._send,  # type: ignore[reportPrivateUsage]
-        ) as streams:
-            await _self._mcp_server.run(
-                streams[0],
-                streams[1],
-                _self._mcp_server.create_initialization_options(),
-            )
-
-    return (handle_sse, sse)
 
 def apply_django_settings(fastmcp_obj: FastMCP):
     fastmcp_obj._mcp_server.title = settings.MCP_SERVER_TITLE
     fastmcp_obj._mcp_server.instructions = settings.MCP_SERVER_INSTRUCTIONS
     fastmcp_obj._mcp_server.version = settings.MCP_SERVER_VERSION
 
-# Create a combined Starlette app with Django and MCP mounted
 def mount_mcp_server(django_http_app: ASGIApp, mcp_base_path: str = '/mcp') -> ASGIApp:
+    """
+    Mounts the MCP server alongside a Django ASGI application.
+
+    Args:
+        django_http_app: The main Django ASGI application.
+        mcp_base_path: The base path for MCP endpoints. Can contain
+                       Django-style path parameters (e.g., '/mcp/<uuid:session_id>')
+                       which will be converted to Starlette format for routing.
+
+    Returns:
+        A combined Starlette ASGI application.
+    """
     # Apply project settings.py overrides to the MCP application
     apply_django_settings(mcp_app)
 
-    # Patch the FastMCP.sse_app() method to support nested paths
-    (handle_sse, sse) = FastMCP_sse_app_patch(mcp_app, base_path=mcp_base_path)
+    # Convert the base path for Starlette routing
+    starlette_base_path = _convert_django_path_to_starlette(mcp_base_path)
+    logger.debug(f"Converted Django-style base path for Starlette: {starlette_base_path}")
+
+    # Call the patched FastMCP.sse_app() method, passing the Starlette path.
+    # This patch contains the logic to handle SSE connections and modify the endpoint URL.
+    # The patch function now resides in asgi_interceptors.py
+    (handle_sse, sse) = FastMCP_sse_app_patch(mcp_app, starlette_base_path=starlette_base_path)
 
     # Register the patched SSE handler and mount the messages endpoint
+    # using the Starlette-compatible path.
     combined_app = Starlette(routes=[
-        Route(f'{mcp_base_path}/sse', endpoint=handle_sse),
-        Mount(f'{mcp_base_path}/messages/', app=sse.handle_post_message),
+        # Route for SSE connections (handled by patched handle_sse)
+        Route(f'{starlette_base_path}/sse', endpoint=handle_sse),
+        # Route for message POSTing (handled by SseServerTransport instance returned by patch)
+        Mount(f'{starlette_base_path}/messages/', app=sse.handle_post_message),
+        # Mount the main Django app at the root
         Mount('/', app=django_http_app),
     ])
 
-    logger.info(f"Serving '{settings.MCP_SERVER_TITLE}' MCP SSE at {mcp_base_path}/sse")
+    logger.info(
+        f"Serving '{settings.MCP_SERVER_TITLE}' MCP SSE at "
+        f"{starlette_base_path}/sse (Django base: {mcp_base_path})"
+    )
 
     return combined_app

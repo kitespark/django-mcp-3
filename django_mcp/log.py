@@ -1,4 +1,6 @@
-# django_mcp/log.py
+"""
+django_mcp/log.py
+"""
 import logging
 import sys
 from django.conf import settings

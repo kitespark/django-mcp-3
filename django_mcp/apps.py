@@ -1,7 +1,6 @@
 from django.apps import AppConfig
 from django.conf import settings
 from django_mcp import mcp_app
-# Import the decorator to be applied
 from .decorators import log_mcp_tool_calls
 from .loader import register_mcp_modules
 from .log import logger, configure_logging
