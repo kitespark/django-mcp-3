@@ -76,11 +76,11 @@ def FastMCP_sse_app_patch(_self: FastMCP, starlette_base_path: str):
                 request.scope,
                 request.receive,
                 intercepted_send,
-            ) as streams:
+            ) as (read_stream, write_stream):
                 # Run the MCP server loop
                 await _self._mcp_server.run(
-                    streams[0],
-                    streams[1],
+                    read_stream,
+                    write_stream,
                     _self._mcp_server.create_initialization_options(),
                 )
         finally:
