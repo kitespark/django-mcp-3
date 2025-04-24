@@ -26,7 +26,6 @@ def make_intercept_sse_send(original_send, resolved_message_base_url: str):
                 body_bytes = message.get("body", b"")
                 body_str = body_bytes.decode('utf-8')
                 if body_str.startswith("event: endpoint"):
-                    print(body_str)
                     lines = body_str.strip().split('\n')
                     if len(lines) == 2 and lines[1].startswith("data: "):
                         original_data_str = lines[1][len("data: "):]
